@@ -75,10 +75,26 @@
 
     <script>
         let userId = null;
+        let ws = null;
 
         // Генерируем случайный ID пользователя при загрузке страницы
         function generateUserId() {
             return 'player_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        function connectWebSocket() {
+            ws = new WebSocket(`ws://localhost:80/ws/${userId}`);
+            
+            ws.onmessage = function(event) {
+                const message = JSON.parse(event.data);
+                if (message.type === 'redirect') {
+                    window.location.href = message.url;
+                }
+            };
+            
+            ws.onclose = function() {
+                setTimeout(connectWebSocket, 1000);
+            };
         }
 
         async function fetchLobbies() {
@@ -153,8 +169,6 @@
                 
                 const lobby = await response.json();
                 showStatus('Вы присоединились к лобби!');
-                // Перенаправляем на страницу игры
-                window.location.href = `/game.html?game_id=${lobbyId}&player_id=${userId}`;
             } catch (error) {
                 showError('Ошибка при присоединении к лобби');
             }
@@ -174,6 +188,7 @@
 
         // Инициализация
         userId = generateUserId();
+        connectWebSocket();
         fetchLobbies();
     </script>
 </body>

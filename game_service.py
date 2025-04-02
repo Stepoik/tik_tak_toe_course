@@ -60,8 +60,7 @@ class GameService:
     def __init__(self):
         self.games: Dict[str, Game] = {}
 
-    def create_game(self, player1: str, player2: str) -> Game:
-        game_id = str(uuid.uuid4())
+    def create_game(self, game_id: str, player1: str, player2: str) -> Game:
         game = Game(game_id, player1, player2)
         self.games[game_id] = game
         return game

@@ -168,7 +168,7 @@
 
         // WebSocket функции
         function connect() {
-            ws = new WebSocket(`ws://localhost:8000/ws/${userId}`);
+            ws = new WebSocket(`ws://localhost:80/ws/${userId}`);
             
             ws.onmessage = function(event) {
                 const message = JSON.parse(event.data);

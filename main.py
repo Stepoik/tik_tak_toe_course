@@ -30,6 +30,7 @@ async def read_game():
 lobby_service = LobbyService()
 game_service = GameService()
 player_service = PlayerService(lobby_service, game_service)
+lobby_service.set_player_service(player_service)
 
 # Хранение подключенных пользователей
 connected_users: Dict[str, WebSocket] = {}
@@ -53,7 +54,7 @@ async def get_lobby(lobby_id: str):
 
 @app.post("/api/lobbies/{lobby_id}/join", response_model=Lobby)
 async def join_lobby(lobby_id: str, join_request: LobbyJoin):
-    lobby = lobby_service.join_lobby(lobby_id, join_request.player_id)
+    lobby = await lobby_service.join_lobby(lobby_id, join_request.player_id)
     if not lobby:
         raise HTTPException(status_code=404, detail="Лобби не найдено")
     return lobby
@@ -62,7 +63,6 @@ async def join_lobby(lobby_id: str, join_request: LobbyJoin):
 # WebSocket endpoint для игры
 @app.websocket("/ws/{user_id}")
 async def websocket_endpoint(websocket: WebSocket, user_id: str):
-    await websocket
     await player_service.connect_player(websocket, user_id)
     try:
         while True:
@@ -71,7 +71,7 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
     except Exception as e:
         print(f"WebSocket error: {e}")
     finally:
-        player_service.disconnect_player(user_id)
+        await player_service.disconnect_player(user_id)
 
 
 async def broadcast_game_state(game_id: str):
