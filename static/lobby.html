@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Лобби - Крестики-нолики</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .lobby-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .lobby-item {
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 4px;
+            background-color: #f8f8f8;
+        }
+        .lobby-item h3 {
+            margin: 0 0 10px 0;
+        }
+        .lobby-item p {
+            margin: 5px 0;
+        }
+        .button {
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .button:hover {
+            background-color: #45a049;
+        }
+        .button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        #status {
+            margin: 20px 0;
+            padding: 10px;
+            background-color: #f8f8f8;
+            border-radius: 4px;
+        }
+        .error {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+        .refresh-button {
+            background-color: #2196F3;
+        }
+        .refresh-button:hover {
+            background-color: #1976D2;
+        }
+    </style>
+</head>
+<body>
+    <h1>Лобби игры</h1>
+    
+    <div id="status"></div>
+    
+    <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+        <button class="button" onclick="createLobby()">Создать лобби</button>
+        <button class="button refresh-button" onclick="fetchLobbies()">Обновить список</button>
+    </div>
+    
+    <div id="lobbies" class="lobby-list"></div>
+
+    <script>
+        let userId = null;
+
+        // Генерируем случайный ID пользователя при загрузке страницы
+        function generateUserId() {
+            return 'player_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        async function fetchLobbies() {
+            try {
+                const response = await fetch('/api/lobbies');
+                const lobbies = await response.json();
+                displayLobbies(lobbies);
+            } catch (error) {
+                showError('Ошибка при получении списка лобби');
+            }
+        }
+
+        function displayLobbies(lobbies) {
+            const lobbiesDiv = document.getElementById('lobbies');
+            lobbiesDiv.innerHTML = '';
+            
+            lobbies.forEach(lobby => {
+                const lobbyDiv = document.createElement('div');
+                lobbyDiv.className = 'lobby-item';
+                lobbyDiv.innerHTML = `
+                    <h3>Лобби ${lobby.id}</h3>
+                    <p>Создатель: ${lobby.creator_id}</p>
+                    <p>Игроки: ${lobby.players.length}/2</p>
+                    <button class="button" onclick="joinLobby('${lobby.id}')" 
+                            ${lobby.players.length >= 2 ? 'disabled' : ''}>
+                        Присоединиться
+                    </button>
+                `;
+                lobbiesDiv.appendChild(lobbyDiv);
+            });
+        }
+
+        async function createLobby() {
+            try {
+                const response = await fetch('/api/lobbies', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        creator_id: userId
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Ошибка при создании лобби');
+                }
+                
+                const lobby = await response.json();
+                showStatus('Лобби создано!');
+                fetchLobbies();
+            } catch (error) {
+                showError('Ошибка при создании лобби');
+            }
+        }
+
+        async function joinLobby(lobbyId) {
+            try {
+                const response = await fetch(`/api/lobbies/${lobbyId}/join`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        player_id: userId
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Ошибка при присоединении к лобби');
+                }
+                
+                const lobby = await response.json();
+                showStatus('Вы присоединились к лобби!');
+                // Перенаправляем на страницу игры
+                window.location.href = `/game.html?game_id=${lobbyId}&player_id=${userId}`;
+            } catch (error) {
+                showError('Ошибка при присоединении к лобби');
+            }
+        }
+
+        function showError(message) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = 'error';
+        }
+
+        function showStatus(message) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = '';
+        }
+
+        // Инициализация
+        userId = generateUserId();
+        fetchLobbies();
+    </script>
+</body>
+</html> 

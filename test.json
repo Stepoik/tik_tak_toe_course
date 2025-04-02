@@ -1,0 +1,71 @@
+{ // test response
+  "search_text" : "",
+   "tests" : [{ // Test preview
+    "id": "",
+    "title": "",
+    "image": "",
+     "rating": 0,
+    "creator": {
+      "id": "",
+      "name": "",
+      "image": ""
+    }
+  }]
+}
+
+{ // Test details
+  "id" : "",
+  "title" : "",
+  "image" : "",
+  "rating": 0,
+  "creator" : {
+    "id" : "",
+    "name": "",
+    "image": ""
+  },
+  "variants" : [
+    {
+      "index" : 0,
+      "image" : "",
+      "description" : "",
+      "title" : ""
+    }
+  ]
+}
+
+{ // test completed request
+  "variants" : [
+    { "1" : "1,2,3,4" },
+    { "2" : "5,6,7,8" },
+    { "3" :  "9,10,11"}
+  ]
+}
+
+{ // test completed response
+  "result" : ""
+}
+
+{ // tests results preview
+  "id" : "",
+  "title" : "",
+  "image" : ""
+}
+
+{ // tests results details
+  "title" : "",
+  "creator" : {
+    "id" : "",
+    "name": "",
+    "image": ""
+  },
+  "test_id" : "",
+  "results" : [
+    {
+      "index" : 0,
+      "image" : "",
+      "title" : "",
+      "user_rank" : 4 = 32 64,
+      "global_rank" : 1
+    }
+  ]
+}

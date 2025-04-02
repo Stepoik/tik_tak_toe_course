@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Игра - Крестики-нолики</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(3, 100px);
+            gap: 5px;
+            margin: 20px auto;
+            width: fit-content;
+        }
+        .cell {
+            width: 100px;
+            height: 100px;
+            border: 2px solid #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            cursor: pointer;
+            background-color: white;
+        }
+        .cell:hover {
+            background-color: #f0f0f0;
+        }
+        .cell.disabled {
+            cursor: not-allowed;
+            background-color: #f8f8f8;
+        }
+        #status {
+            margin: 20px 0;
+            padding: 10px;
+            background-color: #f8f8f8;
+            border-radius: 4px;
+        }
+        .error {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+        .button {
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        .button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <h1>Крестики-нолики</h1>
+    
+    <div id="status">Подключение к игре...</div>
+    
+    <div id="game" style="display: none;">
+        <div id="board" class="game-board"></div>
+        <button class="button" onclick="window.location.href='/lobby.html'">Вернуться в лобби</button>
+    </div>
+
+    <script>
+        // Получаем параметры из URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const gameId = urlParams.get('game_id');
+        const userId = urlParams.get('player_id');
+
+        if (!gameId || !userId) {
+            window.location.href = '/lobby.html';
+        }
+
+        let ws = null;
+        let currentGameState = null;
+
+        function connect() {
+            ws = new WebSocket(`ws://localhost:8000/ws/${userId}`);
+            
+            ws.onmessage = function(event) {
+                const message = JSON.parse(event.data);
+                if (message.type === 'game_state') {
+                    updateGameState(message);
+                }
+            };
+            
+            ws.onclose = function() {
+                showError('Соединение потеряно. Переподключение...');
+                setTimeout(connect, 1000);
+            };
+
+            ws.onopen = function() {
+                showStatus('Подключено к игре');
+                document.getElementById('game').style.display = 'block';
+                // Отправляем сообщение о начале игры
+                ws.send(JSON.stringify({
+                    type: 'start_game',
+                    lobby_id: gameId
+                }));
+            };
+        }
+
+        function updateGameState(state) {
+            currentGameState = state;
+            const board = document.getElementById('board');
+            board.innerHTML = '';
+            
+            state.board.forEach((row, i) => {
+                row.forEach((cell, j) => {
+                    const cellDiv = document.createElement('div');
+                    cellDiv.className = 'cell';
+                    cellDiv.textContent = cell;
+                    
+                    if (!state.winner && !state.is_draw && state.current_player === userId) {
+                        cellDiv.onclick = () => makeMove(i, j);
+                    } else {
+                        cellDiv.classList.add('disabled');
+                    }
+                    
+                    board.appendChild(cellDiv);
+                });
+            });
+            
+            let statusText = '';
+            if (state.winner) {
+                statusText = `Победитель: ${state.winner}`;
+            } else if (state.is_draw) {
+                statusText = 'Ничья!';
+            } else {
+                statusText = `Ход игрока: ${state.current_player}`;
+            }
+            showStatus(statusText);
+        }
+
+        function makeMove(row, col) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'make_move',
+                    game_id: gameId,
+                    row: row,
+                    col: col
+                }));
+            }
+        }
+
+        function showError(message) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = 'error';
+        }
+
+        function showStatus(message) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = '';
+        }
+
+        // Инициализация
+        connect();
+    </script>
+</body>
+</html> 

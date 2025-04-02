@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Крестики-нолики</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(3, 100px);
+            gap: 5px;
+            margin: 20px 0;
+        }
+        .cell {
+            width: 100px;
+            height: 100px;
+            border: 2px solid #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            cursor: pointer;
+        }
+        .lobby {
+            margin: 20px 0;
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+        .lobby-item {
+            padding: 10px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .lobby-item.full {
+            background-color: #f0f0f0;
+            cursor: not-allowed;
+        }
+        .lobby-item.available {
+            cursor: pointer;
+        }
+        .lobby-item.available:hover {
+            background-color: #e0e0e0;
+        }
+        .button {
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .button:hover {
+            background-color: #45a049;
+        }
+        #status {
+            margin: 20px 0;
+            padding: 10px;
+            background-color: #f8f8f8;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Крестики-нолики</h1>
+    
+    <div id="lobbies" class="lobby">
+        <h2>Список лобби</h2>
+        <button class="button" onclick="createLobby()">Создать новое лобби</button>
+        <div id="lobbies-list"></div>
+    </div>
+    
+    <div id="game" style="display: none;">
+        <h2>Игра</h2>
+        <div id="status"></div>
+        <div id="board" class="game-board"></div>
+    </div>
+
+    <script>
+        const userId = 'player_' + Math.random().toString(36).substr(2, 9);
+        let ws = null;
+        let currentGameId = null;
+        let currentLobbyId = null;
+
+        // Функции для работы с REST API
+        async function fetchLobbies() {
+            try {
+                const response = await fetch('/api/lobbies');
+                const lobbies = await response.json();
+                updateLobbiesList(lobbies);
+            } catch (error) {
+                showError('Ошибка при получении списка лобби');
+            }
+        }
+
+        async function createLobby() {
+            try {
+                const response = await fetch('/api/lobbies', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        player_id: userId
+                    })
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail);
+                }
+                
+                const lobby = await response.json();
+                currentLobbyId = lobby.id;
+                showStatus(`Лобби создано. Ожидание второго игрока...`);
+                fetchLobbies();
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        async function joinLobby(lobbyId) {
+            try {
+                const response = await fetch(`/api/lobbies/${lobbyId}/join`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        player_id: userId,
+                        lobby_id: lobbyId
+                    })
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail);
+                }
+                
+                const lobby = await response.json();
+                currentLobbyId = lobby.id;
+                showStatus(`Вы присоединились к лобби. Игроки: ${lobby.players.join(', ')}`);
+                
+                if (lobby.is_full) {
+                    startGame(lobbyId);
+                }
+                
+                fetchLobbies();
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        function startGame(lobbyId) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'start_game',
+                    lobby_id: lobbyId
+                }));
+            }
+        }
+
+        // WebSocket функции
+        function connect() {
+            ws = new WebSocket(`ws://localhost:8000/ws/${userId}`);
+            
+            ws.onmessage = function(event) {
+                const message = JSON.parse(event.data);
+                
+                if (message.type === 'game_state') {
+                    updateGameState(message);
+                }
+            };
+            
+            ws.onclose = function() {
+                setTimeout(connect, 1000);
+            };
+        }
+
+        function updateLobbiesList(lobbies) {
+            const lobbiesDiv = document.getElementById('lobbies-list');
+            lobbiesDiv.innerHTML = '';
+            
+            lobbies.forEach(lobby => {
+                const lobbyDiv = document.createElement('div');
+                lobbyDiv.className = `lobby-item ${lobby.is_full ? 'full' : 'available'}`;
+                
+                const playersText = `Игроки: ${lobby.players.join(', ')}`;
+                const statusText = lobby.is_full ? ' (Полное)' : ' (1/2)';
+                
+                lobbyDiv.innerHTML = `
+                    <span>${playersText}${statusText}</span>
+                    ${!lobby.is_full && !lobby.players.includes(userId) ? 
+                        `<button class="button" onclick="joinLobby('${lobby.id}')">Присоединиться</button>` : ''}
+                `;
+                
+                lobbiesDiv.appendChild(lobbyDiv);
+            });
+        }
+
+        function updateGameState(state) {
+            currentGameId = state.game_id;
+            document.getElementById('lobbies').style.display = 'none';
+            document.getElementById('game').style.display = 'block';
+            
+            const board = document.getElementById('board');
+            board.innerHTML = '';
+            
+            state.board.forEach((row, i) => {
+                row.forEach((cell, j) => {
+                    const cellDiv = document.createElement('div');
+                    cellDiv.className = 'cell';
+                    cellDiv.textContent = cell;
+                    if (!state.winner && !state.is_draw && state.current_player === userId) {
+                        cellDiv.onclick = () => makeMove(i, j);
+                    }
+                    board.appendChild(cellDiv);
+                });
+            });
+            
+            let statusText = '';
+            if (state.winner) {
+                statusText = `Победитель: ${state.winner}`;
+            } else if (state.is_draw) {
+                statusText = 'Ничья!';
+            } else {
+                statusText = `Ход игрока: ${state.current_player}`;
+            }
+            document.getElementById('status').textContent = statusText;
+        }
+
+        function makeMove(row, col) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'make_move',
+                    game_id: currentGameId,
+                    row: row,
+                    col: col
+                }));
+            }
+        }
+
+        function showError(message) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.style.backgroundColor = '#ffebee';
+            status.style.color = '#c62828';
+            setTimeout(() => {
+                status.style.backgroundColor = '#f8f8f8';
+                status.style.color = 'inherit';
+            }, 3000);
+        }
+
+        function showStatus(message) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.style.backgroundColor = '#f8f8f8';
+            status.style.color = 'inherit';
+        }
+
+        // Инициализация
+        connect();
+        fetchLobbies();
+        // Обновляем список лобби каждые 5 секунд
+        setInterval(fetchLobbies, 5000);
+    </script>
+</body>
+</html> 

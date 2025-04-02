@@ -1,0 +1,21 @@
+<component name="InspectionProjectProfileManager">
+  <profile version="1.0">
+    <option name="myName" value="Project Default" />
+    <inspection_tool class="PyInterpreterInspection" enabled="false" level="WARNING" enabled_by_default="false" />
+    <inspection_tool class="PyUnresolvedReferencesInspection" enabled="true" level="WARNING" enabled_by_default="true">
+      <option name="ignoredIdentifiers">
+        <list>
+          <option value="monopoly_server.models.Server.objects" />
+          <option value="monopoly_server.models.Stations.objects" />
+          <option value="monopoly_server.models.DefaultStations.objects" />
+          <option value="monopoly_server.models.Players.objects" />
+          <option value="monopoly_server.models.Chances.objects" />
+          <option value="monopoly_server.models.Monopoly.objects" />
+          <option value="MNIST.nn.Datasets" />
+          <option value="NN.transforms" />
+          <option value="Window.check.clicked" />
+        </list>
+      </option>
+    </inspection_tool>
+  </profile>
+</component>
